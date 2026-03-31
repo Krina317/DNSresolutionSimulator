@@ -148,7 +148,7 @@ app.controller("MainController", function($scope, $http, $timeout) {
         $scope.typingText = "";
         $scope.activeStep = -1;
 
-        $http.post("https://your-backend-url/api/resolve/", {
+        $http.post("http://127.0.0.1:8000/api/resolve/", {
             domain: $scope.domain
         }).then(function(response) {
 
