@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html ng-app="dnsApp">
+<head>
+    <title>DNS Simulator</title>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            color: white;
+            text-align: center;
+            padding: 40px;
+        }
+
+        h1 { margin-bottom: 20px; }
+
+        .box {
+            background: #1e293b;
+            padding: 25px;
+            border-radius: 12px;
+            display: inline-block;
+            width: 500px;
+            box-shadow: 0 0 20px rgba(34,197,94,0.3);
+        }
+
+        input {
+            padding: 12px;
+            width: 260px;
+            border-radius: 6px;
+            border: none;
+        }
+
+        button {
+            padding: 12px 20px;
+            background: #22c55e;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .status-hit { color: #22c55e; }
+        .status-miss { color: #ef4444; }
+
+        .flow {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+
+        .node {
+            background: #0f172a;
+            padding: 10px;
+            border-radius: 8px;
+            width: 80px;
+            font-size: 12px;
+        }
+
+        .active {
+            background: #22c55e;
+            color: black;
+            font-weight: bold;
+        }
+
+        .typing {
+            margin-top: 10px;
+            color: #38bdf8;
+            min-height: 20px;
+        }
+
+        .history {
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .history-item {
+            border-bottom: 1px solid #334155;
+            padding: 8px;
+        }
+    </style>
+</head>
+
+<body ng-controller="MainController">
+
+<h1>🌐 DNS Resolution Simulator</h1>
+
+<div class="box">
+
+    <input type="text" ng-model="domain" placeholder="Enter domain">
+    <button ng-click="resolveDomain()">Resolve</button>
+
+    <!-- STATUS -->
+    <div ng-if="result">
+        <p>
+            <b>Status:</b>
+            <span ng-class="{
+                'status-hit': result.status === 'Cache HIT',
+                'status-miss': result.status === 'Cache MISS'
+            }">
+                {{result.status}}
+            </span>
+        </p>
+        <p><b>IP:</b> {{result.ip}}</p>
+        <button ng-click="openSite()">Visit Website 🌍</button>
+    </div>
+
+    <!-- TYPING ANIMATION -->
+    <div class="typing">
+        {{typingText}}
+    </div>
+
+    <!-- FLOW DIAGRAM -->
+    <div class="flow">
+        <div class="node" ng-class="{active: activeStep===0}">User</div>
+        <div class="node" ng-class="{active: activeStep===1}">Resolver</div>
+        <div class="node" ng-class="{active: activeStep===2}">Root</div>
+        <div class="node" ng-class="{active: activeStep===3}">TLD</div>
+        <div class="node" ng-class="{active: activeStep===4}">Auth</div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="history" ng-if="history.length">
+        <p><b>Visited Domains:</b></p>
+        <div ng-repeat="item in history" class="history-item">
+            {{item.domain}} → {{item.ip}}
+            (<span ng-class="{
+                'status-hit': item.status==='Cache HIT',
+                'status-miss': item.status==='Cache MISS'
+            }">{{item.status}}</span>)
+        </div>
+    </div>
+
+</div>
+
+<script>
+var app = angular.module("dnsApp", []);
+
+app.controller("MainController", function($scope, $http, $timeout) {
+
+    $scope.history = [];
+    $scope.typingText = "";
+    $scope.activeStep = -1;
+
+    $scope.resolveDomain = function() {
+
+        $scope.typingText = "";
+        $scope.activeStep = -1;
+
+        $http.post("http://127.0.0.1:8000/api/resolve/", {
+            domain: $scope.domain
+        }).then(function(response) {
+
+            $scope.result = response.data;
+
+            let steps = [
+                "Querying Resolver...",
+                "Contacting Root Server...",
+                "Contacting TLD Server...",
+                "Contacting Authoritative Server...",
+                "Returning IP..."
+            ];
+
+            let i = 0;
+
+            function animate() {
+                if (i < steps.length) {
+                    $scope.typingText = steps[i];
+                    $scope.activeStep = i;
+                    i++;
+                    $timeout(animate, 700);
+                }
+            }
+
+            animate();
+
+            // Add history
+            $scope.history.unshift({
+                domain: $scope.domain,
+                ip: response.data.ip,
+                status: response.data.status
+            });
+
+        });
+    };
+    $scope.openSite = function() {
+    let url = "https://" + $scope.domain;
+    window.open(url, "_blank");
+};
+
+});
+</script>
+
+</body>
+</html>
